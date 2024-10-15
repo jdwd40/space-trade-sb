@@ -31,7 +31,12 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
   const resourcePrices = {
     metals: 10,
     gas: 15,
-    food: 5
+    food: 5,
+    water: 8,
+    energy: 20,
+    biomatter: 12,
+    fuel: 25,
+    titanium: 30
   };
 
   useEffect(() => {

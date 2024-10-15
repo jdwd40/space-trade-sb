@@ -15,6 +15,11 @@ export interface Planet {
     metals: number;
     gas: number;
     food: number;
+    water: number;
+    biomatter: number;
+    fuel: number;
+    titanium: number;
+    energy: number;
   };
   productionCapacity: number;
   factories: Record<string, { level: number; capacity: number }>;
@@ -44,7 +49,12 @@ export const planetsData: Planet[] = [
     resources: {
       metals: 500,
       gas: 200,
-      food: 20000
+      food: 20000,
+      water: 10000,
+      biomatter: 0,
+      fuel: 0,
+      titanium: 0,
+      energy: 0
     },
     productionCapacity: 250,
     factories: {
@@ -80,7 +90,12 @@ export const planetsData: Planet[] = [
     resources: {
       metals: 1000,
       gas: 500,
-      food: 7000
+      food: 7000,
+      water: 5000,
+      biomatter: 1000,
+      fuel: 2000,
+      titanium: 3000,
+      energy: 5000
     },
     productionCapacity: 600,
     factories: {
@@ -120,7 +135,12 @@ export const planetsData: Planet[] = [
     resources: {
       metals: 15000,
       gas: 8000,
-      food: 500
+      food: 500,
+      water: 2000,
+      biomatter: 500,
+      fuel: 1000,
+      titanium: 2000,
+      energy: 3000
     },
     productionCapacity: 100,
     factories: {
@@ -155,7 +175,12 @@ export const planetsData: Planet[] = [
     resources: {
       metals: 2000,
       gas: 1000,
-      food: 15000
+      food: 15000,
+      water: 8000,
+      biomatter: 2000,
+      fuel: 1000,
+      titanium: 1000,
+      energy: 2000
     },
     productionCapacity: 150,
     factories: {
@@ -191,7 +216,12 @@ export const planetsData: Planet[] = [
     resources: {
       metals: 7000,
       gas: 3000,
-      food: 4000
+      food: 4000,
+      water: 5000,
+      biomatter: 1000,
+      fuel: 3000,
+      titanium: 5000,
+      energy: 7000
     },
     productionCapacity: 500,
     factories: {
