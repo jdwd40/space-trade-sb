@@ -12,6 +12,11 @@ interface PlanetProps {
       metals: number;
       gas: number;
       food: number;
+      water?: number;
+      energy?: number;
+      biomatter?: number;
+      fuel?: number;
+      titanium?: number;
     };
   };
   onUserUpdate: () => void;
@@ -22,8 +27,14 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
   const [buyAmount, setBuyAmount] = useState<{ [key: string]: number }>({
     metals: 0,
     gas: 0,
-    food: 0
+    food: 0,
+    water: 0,
+    energy: 0,
+    biomatter: 0,
+    fuel: 0,
+    titanium: 0,
   });
+
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedResource, setSelectedResource] = useState('');
   const [updatedPlanet, setUpdatedPlanet] = useState(planet);
@@ -36,7 +47,7 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
     energy: 20,
     biomatter: 12,
     fuel: 25,
-    titanium: 30
+    titanium: 30,
   };
 
   useEffect(() => {
@@ -87,6 +98,11 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
       if (latestUserInfo.credits < cost) {
         alert("Not enough credits (after re-validation)!");
         return;
+      }
+
+      // Initialize user resources if not present
+      if (!latestUserInfo.resources[selectedResource]) {
+        latestUserInfo.resources[selectedResource] = 0;
       }
 
       // Update user's credits and resources
@@ -160,7 +176,7 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
                     <input
                       type="number"
                       min="0"
-                      value={buyAmount[resource]}
+                      value={buyAmount[resource] ?? 0}
                       onChange={(e) => handleBuyChange(resource, parseInt(e.target.value))}
                       className="w-20 px-2 py-1 text-black rounded"
                     />
