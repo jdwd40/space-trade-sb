@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { signOut } from 'firebase/auth';
-import { collection, getDocs, setDoc, doc, query, where, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { LogOut, User, Globe } from 'lucide-react';
+import { LogOut, User, Globe, DollarSign } from 'lucide-react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import PlanetInfo from './PlanetInfo';
 import { Link } from 'react-router-dom';
-import { planetsData, Planet } from '../planetsData.ts';
+import { Planet, planetsData } from '../planetsData';
+import UserInfo from './UserInfo';
 
-const PlanetPage = () => {
+const Dashboard = () => {
   const [planets, setPlanets] = useState<Planet[]>([]);
   const [selectedPlanet, setSelectedPlanet] = useState<Planet | null>(null);
   const [user] = useAuthState(auth);
   const [message, setMessage] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
 
   const fetchPlanets = async () => {
     const querySnapshot = await getDocs(collection(db, 'planets'));
@@ -20,9 +22,19 @@ const PlanetPage = () => {
     setPlanets(planetData);
   };
 
+  const fetchUserInfo = async () => {
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        setUserInfo(userDoc.data());
+      }
+    }
+  };
+
   useEffect(() => {
     fetchPlanets();
-  }, []);
+    fetchUserInfo();
+  }, [user]);
 
   const handleLogout = () => {
     signOut(auth);
@@ -97,18 +109,21 @@ const PlanetPage = () => {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {userInfo && <UserInfo userInfo={userInfo} onUserUpdate={fetchUserInfo} />}
+          
           <button
             onClick={addNewPlanets}
             className="mb-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
           >
             <Globe className="h-5 w-5 mr-2" />
-            Add/Update Planets
+            Update Planets
           </button>
           {message && (
             <div className="mb-4 p-4 rounded-md bg-blue-600 text-white">
               {message}
             </div>
           )}
+          
           {selectedPlanet ? (
             <div>
               <button
@@ -117,7 +132,7 @@ const PlanetPage = () => {
               >
                 Back to Planet List
               </button>
-              <PlanetInfo planet={selectedPlanet} />
+              <PlanetInfo planet={selectedPlanet} userInfo={userInfo} onUserUpdate={fetchUserInfo} />
             </div>
           ) : (
             <div>
@@ -146,4 +161,4 @@ const PlanetPage = () => {
   );
 };
 
-export default PlanetPage;
+export default Dashboard;

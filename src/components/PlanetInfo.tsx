@@ -1,45 +1,73 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Globe, Users, Database, Zap, Shield, Flag, Crosshair, Anchor } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { Planet } from '../planetsData';
 
 interface PlanetProps {
-  planet: {
-    name: string;
-    type: string;
-    population: number;
-    size: string;
-    description: string;
+  planet: Planet;
+  userInfo: {
+    credits: number;
     resources: {
       metals: number;
       gas: number;
       food: number;
     };
-    productionCapacity: number;
-    factories: {
-      [key: string]: {
-        level: number;
-        capacity: number;
-      };
-    };
-    armySize: number;
-    armyEquipmentLevel: number;
-    orbitalDefense: boolean;
-    controlledBy: string;
-    influenceLevel: number;
-    factions: {
-      [key: string]: number;
-    };
-    hqPresent: boolean;
-    strategicValue: number;
-    tradeRoutes: string[];
-    coordinates: {
-      x: number;
-      y: number;
-    };
-    image: string;
   };
+  onUserUpdate: () => void;
 }
 
-const PlanetInfo: React.FC<PlanetProps> = ({ planet }) => {
+const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate }) => {
+  const [buyAmount, setBuyAmount] = useState<{ [key: string]: number }>({
+    metals: 0,
+    gas: 0,
+    food: 0
+  });
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [selectedResource, setSelectedResource] = useState('');
+
+  const resourcePrices = {
+    metals: 10,
+    gas: 15,
+    food: 5
+  };
+
+  const handleBuyChange = (resource: string, amount: number) => {
+    setBuyAmount({ ...buyAmount, [resource]: amount });
+  };
+
+  const calculateCost = (resource: string, amount: number) => {
+    return amount * resourcePrices[resource as keyof typeof resourcePrices];
+  };
+
+  const handleBuy = (resource: string) => {
+    setSelectedResource(resource);
+    setShowConfirm(true);
+  };
+
+  const confirmTransaction = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    const amount = buyAmount[selectedResource];
+    const cost = calculateCost(selectedResource, amount);
+
+    if (userInfo.credits < cost) {
+      alert("Not enough credits!");
+      return;
+    }
+
+    await updateDoc(userRef, {
+      credits: userInfo.credits - cost,
+      [`resources.${selectedResource}`]: userInfo.resources[selectedResource as keyof typeof userInfo.resources] + amount
+    });
+
+    setShowConfirm(false);
+    setBuyAmount({ ...buyAmount, [selectedResource]: 0 });
+    onUserUpdate();
+  };
+
   return (
     <div className="bg-gray-800 shadow-lg rounded-lg overflow-hidden">
       <div className="relative h-64">
@@ -62,16 +90,27 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet }) => {
             <h3 className="text-xl font-semibold text-indigo-400 mb-2 flex items-center">
               <Database className="mr-2" /> Resources
             </h3>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-gray-700 p-2 rounded">
-                <p className="text-gray-300"><span className="font-semibold">Metals:</span> {planet.resources.metals}</p>
-              </div>
-              <div className="bg-gray-700 p-2 rounded">
-                <p className="text-gray-300"><span className="font-semibold">Gas:</span> {planet.resources.gas}</p>
-              </div>
-              <div className="bg-gray-700 p-2 rounded">
-                <p className="text-gray-300"><span className="font-semibold">Food:</span> {planet.resources.food}</p>
-              </div>
+            <div className="grid grid-cols-1 gap-2">
+              {Object.entries(planet.resources).map(([resource, amount]) => (
+                <div key={resource} className="bg-gray-700 p-2 rounded flex justify-between items-center">
+                  <p className="text-gray-300"><span className="font-semibold">{resource}:</span> {amount}</p>
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      min="0"
+                      value={buyAmount[resource]}
+                      onChange={(e) => handleBuyChange(resource, parseInt(e.target.value))}
+                      className="w-20 px-2 py-1 text-black rounded"
+                    />
+                    <button
+                      onClick={() => handleBuy(resource)}
+                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      Buy
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
           
@@ -132,6 +171,31 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet }) => {
           <p className="text-gray-300">X: {planet.coordinates.x}, Y: {planet.coordinates.y}</p>
         </div>
       </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h3 className="text-xl font-semibold text-white mb-4">Confirm Transaction</h3>
+            <p className="text-gray-300 mb-4">
+              Buy {buyAmount[selectedResource]} {selectedResource} for {calculateCost(selectedResource, buyAmount[selectedResource])} credits?
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmTransaction}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
