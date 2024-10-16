@@ -20,6 +20,16 @@ export interface Planet {
     fuel: number;
     titanium: number;
     energy: number;
+    prices: {
+      metals: number;
+      gas: number;
+      food: number;
+      water: number;
+      biomatter: number;
+      fuel: number;
+      titanium: number;
+      energy: number;
+    };
   };
   productionCapacity: number;
   factories: Record<string, { level: number; capacity: number }>;
@@ -54,7 +64,17 @@ export const planetsData: Planet[] = [
       biomatter: 0,
       fuel: 0,
       titanium: 0,
-      energy: 0
+      energy: 0,
+      prices: {
+        metals: 10,
+        gas: 15,
+        food: 5,
+        water: 3,
+        biomatter: 0,
+        fuel: 0,
+        titanium: 0,
+        energy: 0
+      }
     },
     productionCapacity: 250,
     factories: {
@@ -95,7 +115,17 @@ export const planetsData: Planet[] = [
       biomatter: 1000,
       fuel: 2000,
       titanium: 3000,
-      energy: 5000
+      energy: 5000,
+      prices: {
+        metals: 20,
+        gas: 25,
+        food: 10,
+        water: 8,
+        biomatter: 30,
+        fuel: 50,
+        titanium: 100,
+        energy: 200
+      }
     },
     productionCapacity: 600,
     factories: {
@@ -140,7 +170,17 @@ export const planetsData: Planet[] = [
       biomatter: 500,
       fuel: 1000,
       titanium: 2000,
-      energy: 3000
+      energy: 3000,
+      prices: {
+        metals: 50,
+        gas: 60,
+        food: 15,
+        water: 10,
+        biomatter: 40,
+        fuel: 70,
+        titanium: 150,
+        energy: 250
+      }
     },
     productionCapacity: 100,
     factories: {
@@ -180,7 +220,17 @@ export const planetsData: Planet[] = [
       biomatter: 2000,
       fuel: 1000,
       titanium: 1000,
-      energy: 2000
+      energy: 2000,
+      prices: {
+        metals: 30,
+        gas: 35,
+        food: 7,
+        water: 5,
+        biomatter: 20,
+        fuel: 40,
+        titanium: 80,
+        energy: 100
+      }
     },
     productionCapacity: 150,
     factories: {
@@ -221,7 +271,17 @@ export const planetsData: Planet[] = [
       biomatter: 1000,
       fuel: 3000,
       titanium: 5000,
-      energy: 7000
+      energy: 7000,
+      prices: {
+        metals: 40,
+        gas: 45,
+        food: 12,
+        water: 9,
+        biomatter: 25,
+        fuel: 60,
+        titanium: 120,
+        energy: 180
+      }
     },
     productionCapacity: 500,
     factories: {

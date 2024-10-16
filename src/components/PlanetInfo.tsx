@@ -128,11 +128,14 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
         [`resources.${selectedResource}`]: latestPlanetData.resources[selectedResource] - amount
       });
 
-      // Fetch the updated planet data and update local state
-      const updatedPlanetSnap = await getDoc(planetRef);
-      if (updatedPlanetSnap.exists()) {
-        setUpdatedPlanet(updatedPlanetSnap.data() as Planet);
-      }
+      // Update the local state for the planet's resources immediately after the transaction
+      setUpdatedPlanet((prevPlanet) => ({
+        ...prevPlanet,
+        resources: {
+          ...prevPlanet.resources,
+          [selectedResource]: prevPlanet.resources[selectedResource as keyof typeof prevPlanet.resources] - amount,
+        },
+      }));
 
       setShowConfirm(false);
       setBuyAmount({ ...buyAmount, [selectedResource]: 0 });
@@ -170,24 +173,26 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
             </h3>
             <div className="grid grid-cols-1 gap-2">
               {Object.entries(updatedPlanet.resources).map(([resource, amount]) => (
-                <div key={resource} className="bg-gray-700 p-2 rounded flex justify-between items-center">
-                  <p className="text-gray-300"><span className="font-semibold">{resource}:</span> {amount}</p>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      min="0"
-                      value={buyAmount[resource] ?? 0}
-                      onChange={(e) => handleBuyChange(resource, parseInt(e.target.value))}
-                      className="w-20 px-2 py-1 text-black rounded"
-                    />
-                    <button
-                      onClick={() => handleBuy(resource)}
-                      className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                      Buy
-                    </button>
+                typeof amount === 'number' && (
+                  <div key={resource} className="bg-gray-700 p-2 rounded flex justify-between items-center">
+                    <p className="text-gray-300"><span className="font-semibold">{resource}:</span> {amount} (Price: {resourcePrices[resource as keyof typeof resourcePrices]} credits)</p>
+                    <div className="flex space-x-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={buyAmount[resource] ?? 0}
+                        onChange={(e) => handleBuyChange(resource, parseInt(e.target.value))}
+                        className="w-20 px-2 py-1 text-black rounded"
+                      />
+                      <button
+                        onClick={() => handleBuy(resource)}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                      >
+                        Buy
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )
               ))}
             </div>
           </div>
@@ -200,7 +205,7 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
             <div className="bg-gray-800 p-6 rounded-lg">
               <h3 className="text-xl font-semibold text-white mb-4">Confirm Transaction</h3>
               <p className="text-gray-300 mb-4">
-                Buy {buyAmount[selectedResource]} {selectedResource} for {calculateCost(selectedResource, buyAmount[selectedResource])} credits?
+                Buy {buyAmount[selectedResource]} {selectedResource} for {calculateCost(selectedResource, buyAmount[selectedResource])} credits (Price per unit: {resourcePrices[selectedResource as keyof typeof resourcePrices]} credits).
               </p>
               <div className="flex justify-end space-x-4">
                 <button
