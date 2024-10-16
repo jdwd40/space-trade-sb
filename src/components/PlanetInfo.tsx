@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Users, Database, Zap, Shield, Flag, Crosshair, Anchor } from 'lucide-react';
+import { Globe, Users, Database, Zap, Shield, Flag, Crosshair, Anchor, Coins } from 'lucide-react';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Planet } from '../planetsData';
@@ -35,8 +35,11 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
     titanium: 0,
   });
 
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [sellAmount, setSellAmount] = useState<number>(0);
   const [selectedResource, setSelectedResource] = useState('');
+  const [calculatedValue, setCalculatedValue] = useState<number>(0);
+  const [showBuyConfirm, setShowBuyConfirm] = useState(false);
+  const [showSellConfirm, setShowSellConfirm] = useState(false);
   const [updatedPlanet, setUpdatedPlanet] = useState(planet);
 
   const resourcePrices = {
@@ -56,21 +59,37 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
   }, [planet]);
 
   const handleBuyChange = (resource: string, amount: number) => {
+    if (isNaN(amount) || amount < 0) {
+      return;
+    }
     setBuyAmount({ ...buyAmount, [resource]: amount });
   };
 
   const calculateCost = (resource: string, amount: number) => {
-    return amount * resourcePrices[resource as keyof typeof resourcePrices];
+    const price = resourcePrices[resource as keyof typeof resourcePrices];
+    return price ? amount * price : 0;
   };
 
   const handleBuy = (resource: string) => {
     setSelectedResource(resource);
-    setShowConfirm(true);
+    setShowBuyConfirm(true);
   };
 
-  const confirmTransaction = async () => {
+  const handleSellClick = (resource: string, amount: number) => {
+    if (amount <= 0) return;
+    setSelectedResource(resource);
+    setSellAmount(amount);
+    const price = resourcePrices[resource as keyof typeof resourcePrices];
+    setCalculatedValue(price ? amount * price : 0);
+    setShowSellConfirm(true);
+  };
+
+  const confirmBuyTransaction = async () => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user || !selectedResource) {
+      alert('User is not authenticated. Please log in to proceed with the transaction.');
+      return;
+    }
 
     const userRef = doc(db, 'users', user.uid);
     const planetRef = doc(db, 'planets', planet.id);
@@ -83,7 +102,9 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
     }
 
     if (updatedPlanet.resources[selectedResource as keyof typeof updatedPlanet.resources] < amount) {
-      alert("Not enough resources on the planet!");
+      alert(
+        `Not enough resources on the planet! You can try reducing the amount to ${updatedPlanet.resources[selectedResource as keyof typeof updatedPlanet.resources]} or less.`
+      );
       return;
     }
 
@@ -119,7 +140,9 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
 
       const latestPlanetData = planetSnap.data();
       if (latestPlanetData.resources[selectedResource] < amount) {
-        alert("Not enough resources on the planet (after re-validation)!");
+        alert(
+          `Not enough resources on the planet (after re-validation)! You can try reducing the amount to ${latestPlanetData.resources[selectedResource]} or less.`
+        );
         return;
       }
 
@@ -129,15 +152,17 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
       });
 
       // Update the local state for the planet's resources immediately after the transaction
-      setUpdatedPlanet((prevPlanet) => ({
-        ...prevPlanet,
-        resources: {
-          ...prevPlanet.resources,
-          [selectedResource]: prevPlanet.resources[selectedResource as keyof typeof prevPlanet.resources] - amount,
-        },
-      }));
+      setUpdatedPlanet((prevPlanet) => {
+        return {
+          ...prevPlanet,
+          resources: {
+            ...prevPlanet.resources,
+            [selectedResource]: prevPlanet.resources[selectedResource as keyof typeof prevPlanet.resources] - amount,
+          },
+        };
+      });
 
-      setShowConfirm(false);
+      setShowBuyConfirm(false);
       setBuyAmount({ ...buyAmount, [selectedResource]: 0 });
       onUserUpdate();
       onPlanetUpdate && onPlanetUpdate(planet.id);
@@ -147,6 +172,36 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
         alert('An error occurred during the transaction');
       }
     }
+  };
+
+  const confirmSellTransaction = async () => {
+    const user = auth.currentUser;
+    if (!user || !selectedResource) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    const amount = sellAmount;
+    const value = calculatedValue;
+
+    if (userInfo.resources[selectedResource as keyof typeof userInfo.resources] < amount) {
+      alert("Not enough resources!");
+      return;
+    }
+
+    try {
+      await updateDoc(userRef, {
+        credits: userInfo.credits + value,
+        [`resources.${selectedResource}`]: userInfo.resources[selectedResource as keyof typeof userInfo.resources] - amount,
+      });
+    } catch (error) {
+      console.error("Error updating document: ", error);
+      alert("An error occurred while processing the transaction.");
+      return;
+    }
+
+    setShowSellConfirm(false);
+    setSellAmount(0);
+    setSelectedResource('');
+    onUserUpdate();
   };
 
   return (
@@ -175,7 +230,7 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
               {Object.entries(updatedPlanet.resources).map(([resource, amount]) => (
                 typeof amount === 'number' && (
                   <div key={resource} className="bg-gray-700 p-2 rounded flex justify-between items-center">
-                    <p className="text-gray-300"><span className="font-semibold">{resource}:</span> {amount} (Price: {resourcePrices[resource as keyof typeof resourcePrices]} credits)</p>
+                    <p className="text-gray-300"><span className="font-semibold">{resource}:</span> {amount} (Price: {resourcePrices[resource as keyof typeof resourcePrices] ?? 'N/A'} credits)</p>
                     <div className="flex space-x-2">
                       <input
                         type="number"
@@ -190,32 +245,61 @@ const PlanetInfo: React.FC<PlanetProps> = ({ planet, userInfo, onUserUpdate, onP
                       >
                         Buy
                       </button>
+                      <button
+                        onClick={() => handleSellClick(resource, buyAmount[resource])}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+                      >
+                        <Coins className="text-yellow-500 mr-1" /> Sell
+                      </button>
                     </div>
                   </div>
                 )
               ))}
             </div>
           </div>
-          
-          {/* Additional Planet Information Sections */}
         </div>
-        
-        {showConfirm && (
+
+        {showBuyConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-gray-800 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold text-white mb-4">Confirm Transaction</h3>
+              <h3 className="text-xl font-semibold text-white mb-4">Confirm Buy Transaction</h3>
               <p className="text-gray-300 mb-4">
-                Buy {buyAmount[selectedResource]} {selectedResource} for {calculateCost(selectedResource, buyAmount[selectedResource])} credits (Price per unit: {resourcePrices[selectedResource as keyof typeof resourcePrices]} credits).
+                Buy {buyAmount[selectedResource]} {selectedResource} @ {resourcePrices[selectedResource as keyof typeof resourcePrices]} credits for a total of {calculateCost(selectedResource, buyAmount[selectedResource])} credits.
               </p>
               <div className="flex justify-end space-x-4">
                 <button
-                  onClick={() => setShowConfirm(false)}
+                  onClick={() => setShowBuyConfirm(false)}
                   className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={confirmTransaction}
+                  onClick={confirmBuyTransaction}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSellConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-white mb-4">Confirm Sell Transaction</h3>
+              <p className="text-gray-300 mb-4">
+                Sell {sellAmount} {selectedResource} @ {resourcePrices[selectedResource as keyof typeof resourcePrices]} credits for a total of {calculatedValue} credits.
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => setShowSellConfirm(false)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmSellTransaction}
                   className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                 >
                   Confirm

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DollarSign, Fuel, BatteryCharging, Coins, Ship } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { Planet } from '../planetsData';
 
 interface UserInfoProps {
   userInfo: {
@@ -12,61 +13,68 @@ interface UserInfoProps {
       food: number;
       fuel: number;
       energy: number;
+      water?: number;
+      biomatter?: number;
+      titanium?: number;
     };
   };
+  planet?: Planet; // Optional, since the user might be on the dashboard
   onUserUpdate: () => void;
 }
 
-const UserInfo: React.FC<UserInfoProps> = ({ userInfo, onUserUpdate }) => {
-  const [sellAmount, setSellAmount] = useState<{ [key: string]: number }>({
-    metals: 0,
-    gas: 0,
-    food: 0,
-    fuel: 0,
-    energy: 0,
-  });
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedResource, setSelectedResource] = useState('');
+const UserInfo: React.FC<UserInfoProps> = ({ userInfo, planet, onUserUpdate }) => {
+  const [sellAmount, setSellAmount] = useState<number>(0);
+  const [selectedResource, setSelectedResource] = useState<string>('');
+  const [showSellForm, setShowSellForm] = useState(false);
+  const [calculatedValue, setCalculatedValue] = useState<number>(0);
 
-  const resourcePrices = {
-    metals: 10,
-    gas: 15,
-    food: 5,
+  // Use the planet's resource prices if a planet is provided
+  const resourcePrices = planet ? planet.resources.prices : {};
+
+  const handleSellClick = () => {
+    setShowSellForm(true);
   };
 
-  const handleSellChange = (resource: string, amount: number) => {
-    setSellAmount({ ...sellAmount, [resource]: amount });
-  };
-
-  const calculateValue = (resource: string, amount: number) => {
-    return amount * resourcePrices[resource as keyof typeof resourcePrices];
-  };
-
-  const handleSell = (resource: string) => {
+  const handleResourceSelect = (resource: string) => {
     setSelectedResource(resource);
-    setShowConfirm(true);
+    setSellAmount(0);
+    setCalculatedValue(0);
+  };
+
+  const handleSellAmountChange = (amount: number) => {
+    if (isNaN(amount) || amount < 0) return;
+    setSellAmount(amount);
+    const price = resourcePrices[selectedResource as keyof typeof resourcePrices];
+    setCalculatedValue(price ? amount * price : 0);
   };
 
   const confirmTransaction = async () => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user || !selectedResource) return;
 
     const userRef = doc(db, 'users', user.uid);
-    const amount = sellAmount[selectedResource];
-    const value = calculateValue(selectedResource, amount);
+    const amount = sellAmount;
+    const value = calculatedValue;
 
     if (userInfo.resources[selectedResource as keyof typeof userInfo.resources] < amount) {
       alert("Not enough resources!");
       return;
     }
 
-    await updateDoc(userRef, {
-      credits: userInfo.credits + value,
-      [`resources.${selectedResource}`]: userInfo.resources[selectedResource as keyof typeof userInfo.resources] - amount,
-    });
+    try {
+      await updateDoc(userRef, {
+        credits: userInfo.credits + value,
+        [`resources.${selectedResource}`]: userInfo.resources[selectedResource as keyof typeof userInfo.resources] - amount,
+      });
+    } catch (error) {
+      console.error("Error updating document: ", error);
+      alert("An error occurred while processing the transaction.");
+      return;
+    }
 
-    setShowConfirm(false);
-    setSellAmount({ ...sellAmount, [selectedResource]: 0 });
+    setShowSellForm(false);
+    setSellAmount(0);
+    setSelectedResource('');
     onUserUpdate();
   };
 
@@ -100,48 +108,66 @@ const UserInfo: React.FC<UserInfoProps> = ({ userInfo, onUserUpdate }) => {
             <div key={resource} className="bg-gray-700 p-2 rounded-lg">
               <p className="text-sm text-gray-300 capitalize">{resource}</p>
               <p className="text-lg font-semibold text-white">{amount.toLocaleString()}</p>
-              <div className="mt-2 flex space-x-2">
-                <input
-                  type="number"
-                  min="0"
-                  max={amount}
-                  value={sellAmount[resource]}
-                  onChange={(e) => handleSellChange(resource, parseInt(e.target.value))}
-                  className="w-20 px-2 py-1 text-black rounded"
-                />
-                <button
-                  onClick={() => handleSell(resource)}
-                  className="px-3 py-1 bg-transparent text-white rounded hover:bg-gray-700"
-                >
-                  <Coins className="text-blue-500" />
-                </button>
-              </div>
             </div>
           );
         })}
       </div>
 
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h3 className="text-xl font-semibold text-white mb-4">Confirm Transaction</h3>
-            <p className="text-gray-300 mb-4">
-              Sell {sellAmount[selectedResource]} {selectedResource} for {calculateValue(selectedResource, sellAmount[selectedResource])} credits?
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmTransaction}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Confirm
-              </button>
+      <button
+        onClick={handleSellClick}
+        className="mt-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Sell Resources
+      </button>
+
+      {showSellForm && (
+        <div className="mt-6 bg-gray-700 p-6 rounded-lg">
+          <h3 className="text-xl font-semibold text-white mb-4">Sell Resources</h3>
+          <div className="mb-4">
+            <label className="text-sm text-gray-300 mb-2 block">Select Resource:</label>
+            <select
+              value={selectedResource}
+              onChange={(e) => handleResourceSelect(e.target.value)}
+              className="w-full p-2 text-black rounded"
+            >
+              <option value="" disabled>Select a resource</option>
+              {Object.entries(userInfo.resources).map(([resource, amount]) => (
+                amount > 0 && resourcePrices[resource as keyof typeof resourcePrices] ? (
+                  <option key={resource} value={resource}>{resource}</option>
+                ) : null
+              ))}
+            </select>
+          </div>
+          {selectedResource && (
+            <div className="mb-4">
+              <label className="text-sm text-gray-300 mb-2 block">Amount to Sell:</label>
+              <input
+                type="number"
+                min="0"
+                max={userInfo.resources[selectedResource as keyof typeof userInfo.resources]}
+                value={sellAmount}
+                onChange={(e) => handleSellAmountChange(parseInt(e.target.value))}
+                className="w-full p-2 text-black rounded"
+              />
             </div>
+          )}
+          {selectedResource && sellAmount > 0 && (
+            <p className="text-gray-300 mb-4">Total Value: {calculatedValue} credits</p>
+          )}
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => setShowSellForm(false)}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmTransaction}
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              disabled={!selectedResource || sellAmount <= 0}
+            >
+              Confirm
+            </button>
           </div>
         </div>
       )}
