@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DollarSign, Fuel, BatteryCharging, Coins, Ship } from 'lucide-react';
+import { DollarSign, Fuel, BatteryCharging, Ship } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Planet } from '../planetsData';
@@ -56,7 +56,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ userInfo, planet, onUserUpdate }) =
     const amount = sellAmount;
     const value = calculatedValue;
 
-    if (userInfo.resources[selectedResource as keyof typeof userInfo.resources] < amount) {
+    if (!userInfo.resources || userInfo.resources[selectedResource as keyof typeof userInfo.resources] === undefined || userInfo.resources[selectedResource as keyof typeof userInfo.resources]! < amount) {
       alert("Not enough resources!");
       return;
     }
@@ -64,7 +64,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ userInfo, planet, onUserUpdate }) =
     try {
       await updateDoc(userRef, {
         credits: userInfo.credits + value,
-        [`resources.${selectedResource}`]: userInfo.resources[selectedResource as keyof typeof userInfo.resources] - amount,
+        [`resources.${selectedResource}`]: userInfo.resources?.[selectedResource as keyof typeof userInfo.resources]! - amount,
       });
     } catch (error) {
       console.error("Error updating document: ", error);
@@ -89,14 +89,14 @@ const UserInfo: React.FC<UserInfoProps> = ({ userInfo, planet, onUserUpdate }) =
           <Fuel className="text-yellow-400" />
           <div>
             <p className="text-sm text-gray-300">Fuel</p>
-            <p className="text-lg font-semibold text-white">{userInfo.resources.fuel.toLocaleString()}</p>
+            <p className="text-lg font-semibold text-white">{userInfo.resources?.fuel?.toLocaleString() || 0}</p>
           </div>
         </div>
         <div className="bg-gray-700 p-2 rounded-lg flex items-center space-x-2">
           <BatteryCharging className="text-green-400" />
           <div>
             <p className="text-sm text-gray-300">Energy</p>
-            <p className="text-lg font-semibold text-white">{userInfo.resources.energy.toLocaleString()}</p>
+            <p className="text-lg font-semibold text-white">{userInfo.resources?.energy?.toLocaleString() || 0}</p>
           </div>
         </div>
       </div>
@@ -107,7 +107,7 @@ const UserInfo: React.FC<UserInfoProps> = ({ userInfo, planet, onUserUpdate }) =
           return (
             <div key={resource} className="bg-gray-700 p-2 rounded-lg">
               <p className="text-sm text-gray-300 capitalize">{resource}</p>
-              <p className="text-lg font-semibold text-white">{amount.toLocaleString()}</p>
+              <p className="text-lg font-semibold text-white">{amount?.toLocaleString() || 0}</p>
             </div>
           );
         })}
@@ -180,8 +180,8 @@ const UserInfo: React.FC<UserInfoProps> = ({ userInfo, planet, onUserUpdate }) =
         <div>
           <p className="text-lg font-semibold text-white">Ship Type: Explorer</p>
           <p className="text-sm text-gray-300">Inventory Size: 5/10</p>
-          <p className="text-sm text-gray-300">Fuel: {userInfo.resources.fuel.toLocaleString()}</p>
-          <p className="text-sm text-gray-300">Energy: {userInfo.resources.energy.toLocaleString()}</p>
+          <p className="text-sm text-gray-300">Fuel: {userInfo.resources?.fuel?.toLocaleString() || 0}</p>
+          <p className="text-sm text-gray-300">Energy: {userInfo.resources?.energy?.toLocaleString() || 0}</p>
         </div>
       </div>
     </div>
